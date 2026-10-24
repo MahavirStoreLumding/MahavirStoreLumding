@@ -575,10 +575,10 @@ const getFirstField = (row, keys) => {
   return '';
 };
 
-/* Extracts up to 5 colour options and their respective image URLs from a product row */
+/* Extracts up to 15 colour options and their respective image URLs from a product row */
 function extractProductColors(row) {
   const colors = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 15; i++) {
     const cName = getFirstField(row, [
       `color_${i}`, `colour_${i}`,
       `color ${i}`, `colour ${i}`,
