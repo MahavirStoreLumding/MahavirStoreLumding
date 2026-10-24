@@ -71,8 +71,8 @@ footer p{margin:0;font-size:14px;opacity:.9}footer b{color:#fff}
 /* product page */
 #pdp{display:none;max-width:760px;margin:0 auto;padding-bottom:96px}
 body.pdp #pdp{display:block}body.pdp #shop,body.pdp .ann,body.pdp .top,body.pdp footer{display:none}
-.pimg{background:var(--tile);aspect-ratio:1/1;display:grid;place-items:center;overflow:hidden}
-.pimg img{width:58%;max-width:340px}.pimg img.real{max-width:none}
+.pimg{background:var(--tile);aspect-ratio:1/1;display:grid;place-items:center;overflow:hidden;position:relative}
+.pimg img{width:58%;max-width:340px;transition:opacity .18s ease}.pimg img.real{max-width:none}
 .pb{padding:18px 16px}
 .crumb{color:var(--org);font:400 16px var(--hd);letter-spacing:.16em;text-transform:uppercase;margin:0}
 .pb h1{font:400 clamp(32px,8vw,44px)/1 var(--hd);text-transform:uppercase;margin:2px 0 12px;letter-spacing:.02em}
@@ -80,6 +80,14 @@ body.pdp #pdp{display:block}body.pdp #shop,body.pdp .ann,body.pdp .top,body.pdp 
 .pp b{font:400 36px var(--sf)}.pp s{color:var(--mut);font-size:17px}.pp span{color:var(--org);font-weight:600}
 .note{color:var(--mut);font-size:13px;margin:2px 0 18px}
 .pb h2{font:400 22px var(--hd);text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+.c-wrap{margin-bottom:18px}
+.c-sel-lbl{font:600 14px var(--bd);color:var(--org);letter-spacing:0;text-transform:none;margin-left:4px}
+.colors{display:flex;flex-wrap:wrap;gap:10px}
+.cbtn{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px 7px 9px;display:inline-flex;align-items:center;gap:8px;font:600 14px/1.2 var(--bd);transition:border-color .15s,background .15s,box-shadow .15s}
+.cbtn[aria-pressed="true"]{border-color:var(--org);background:var(--orgs);box-shadow:inset 0 0 0 1px var(--org)}
+.cbtn.c-sold{opacity:.55}
+.cbtn small{font-weight:500;font-size:11px;color:var(--mut)}
+.cdot{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.18);flex:none;background-size:cover;background-position:center}
 .sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sbtn{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:1px}
 .sbtn b{font-size:16px}.sbtn small{color:var(--mut);font-size:12px}
@@ -169,10 +177,15 @@ body.cart-open .scrim{opacity:1;visibility:visible}body.cart-open .drawer{transf
     <h1 id="pName"></h1>
     <div class="pp"><b id="pPrice"></b><s id="pMrp"></s><span id="pOff"></span></div>
     <p class="note" id="pNote"></p>
+    <div class="c-wrap" id="colorWrap" hidden>
+      <h2>Select colour <span class="c-sel-lbl" id="cSelName"></span></h2>
+      <div class="colors" id="colors"></div>
+      <p class="err" id="colorErr" role="alert" hidden>Please select a colour to continue.</p>
+    </div>
     <h2>Select size</h2>
     <div class="sizes" id="sizes"></div>
     <p class="err" id="sizeErr" role="alert" hidden>Please select a size to continue.</p>
-    <div class="spec"><h2>Product specification</h2><p id="pSpec"></p><p class="note">Prices vary by size. The price shown always matches your selected size.</p></div>
+    <div class="spec"><h2>Product specification</h2><p id="pSpec"></p><p class="note">Prices vary by size and remain the same across all colours.</p></div>
     <div class="policy">
       <div><b>Cash on Delivery only</b><span>Pay in cash when your order reaches you. We do not accept online payments.</span></div>
       <div><b>Returns at our store only</b><span>Returns are processed only when you visit our Lumding store in person, not online. <a class="storeLink" href="#" target="_blank" rel="noopener">Get directions</a></span></div>
@@ -281,7 +294,7 @@ function safeSetStore(key, value) {
 
 try { window.localStorage.removeItem('msl_catalog_cache'); } catch (e) {}
 
-/* ---- Placeholder Artwork & Image URL Resolver ---- */
+/* ---- Placeholder Artwork, Swatch Colours & Image URL Resolver ---- */
 const svg = b => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240">${b}</svg>`;
 const ART = {
   tee: c => svg(`<path d="M70 30 40 45 10 85l28 20 17-17v127h90V88l17 17 28-20-30-40-30-15q-30 22-60 0z" fill="${c}"/><path d="M70 30q30 22 60 0" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="3"/>`),
@@ -291,14 +304,55 @@ const ART = {
   leg: c => svg(`<path d="M66 20h68l14 200h-32l-16-118-16 118H52z" fill="${c}"/><path d="M66 36h68" stroke="rgba(255,255,255,.3)" stroke-width="3"/>`)
 };
 const PAL = ['#9fb2c8', '#d8d3c8', '#b7c4b4', '#c9b8a6', '#7f8fa6', '#e0b8b0', '#b8a9c9', '#8a9a86'];
-const ph = x => 'data:image/svg+xml;utf8,' + encodeURIComponent((ART[x.cat.art] || ART.tee)(PAL[[...x.id].reduce((a, c) => a + c.charCodeAt(0), 0) % PAL.length]));
+
+const SWATCH_MAP = {
+  black: '#1c1c1e', charcoal: '#3a3d42', grey: '#8e9299', gray: '#8e9299', melange: '#b4b7bd', silver: '#c8ccd1',
+  white: '#ffffff', offwhite: '#f7f5f0', cream: '#f4efe6', ivory: '#f9f6f0', beige: '#d9c7b2', khaki: '#c3b091',
+  navy: '#1b2a4a', blue: '#2563eb', sky: '#7dd3fc', royal: '#1d4ed8', teal: '#0d9488', turquoise: '#14b8a6',
+  red: '#dc2626', maroon: '#7f1d1d', burgundy: '#6b1229', wine: '#581c34', rust: '#b45309',
+  green: '#16a34a', olive: '#556b2f', bottle: '#14532d', mint: '#6ee7b7', sage: '#84a98c',
+  yellow: '#eab308', mustard: '#ca8a04', gold: '#d97706', orange: '#ea580c', peach: '#fdba74', coral: '#fb7185',
+  pink: '#ec4899', rose: '#f43f5e', baby: '#f9a8d4', magenta: '#db2777',
+  purple: '#9333ea', lavender: '#c084fc', lilac: '#d8b4fe', violet: '#7c3aed',
+  brown: '#78350f', coffee: '#451a03', tan: '#d2b48c', nude: '#e3c1b4', skin: '#e6be9a'
+};
+
+function swatchColor(name, fallbackIdx = 0) {
+  const s = String(name || '').toLowerCase().trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return s;
+  for (const [k, hex] of Object.entries(SWATCH_MAP)) {
+    if (s.includes(k)) return hex;
+  }
+  return PAL[fallbackIdx % PAL.length];
+}
+
+const ph = (x, customTone) => {
+  const fill = customTone || PAL[[...x.id].reduce((a, c) => a + c.charCodeAt(0), 0) % PAL.length];
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent((ART[x.cat.art] || ART.tee)(fill));
+};
+
 const cleanImg = u => {
   const s = String(u || '').trim();
   if (!s) return '';
   const m = s.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([a-zA-Z0-9_-]+)/);
   return m ? `https://lh3.googleusercontent.com/d/${m[1]}` : s;
 };
-const imgTag = x => `<img ${x.image ? 'class="real" ' : ''}data-pid="${x.id}" alt="${x.n.replace(/"/g, '&quot;')}" src="${x.image || ph(x)}">`;
+
+/* Returns the image URL for a given product and optional selected colour name */
+function imageForColor(x, colorName) {
+  if (colorName && x.colors && x.colors.length) {
+    const found = x.colors.find(c => c.name === colorName);
+    if (found && found.image) return found.image;
+  }
+  return x.image || (x.colors && x.colors[0] && x.colors[0].image) || '';
+}
+
+const imgTag = (x, colorName) => {
+  const src = imageForColor(x, colorName);
+  const cTone = colorName ? swatchColor(colorName) : null;
+  return `<img ${src ? 'class="real" ' : ''}data-pid="${x.id}" alt="${x.n.replace(/"/g, '&quot;')}" src="${src || ph(x, cTone)}">`;
+};
+
 addEventListener('error', e => {
   const t = e.target;
   if (t.tagName === 'IMG' && t.dataset.pid && BY[t.dataset.pid] && !t.dataset.fb) {
@@ -309,7 +363,7 @@ addEventListener('error', e => {
 }, true);
 
 /* ---- App State ---- */
-let CATS = [], P = [], BY = {}, cat = 'all', cur = null, sel = null, lastY = 0, pushed = false;
+let CATS = [], P = [], BY = {}, cat = 'all', cur = null, sel = null, selColor = null, lastY = 0, pushed = false;
 /* Strict Pincode Set: Pre-populated with 782447 and updated live from "Pincodes Accessible" (A2:A1000) */
 let ALLOWED_PINCODES = new Set(['782447']);
 let cart = safeGetStore('msl_cart', []);
@@ -450,7 +504,7 @@ function renderSkeletons() {
     .join('');
 }
 
-/* ============================ 5. GOOGLE SHEET DATA PARSER & PINCODE EXTRACTOR ============================ */
+/* ============================ 5. GOOGLE SHEET DATA PARSER, COLOURS, METHOD C STOCKOUTS & PINCODES ============================ */
 const NON_CATEGORY_TABS = /^(categories|products|orders|pincodes?\s*accessible|accessible\s*pincodes?|pincodes?)$/i;
 const PINCODE_TAB_REGEX = /^(pincodes?\s*accessible|accessible\s*pincodes?|pincodes?)$/i;
 
@@ -513,6 +567,126 @@ const getField = (row, key) => {
   return found ? row[found] : '';
 };
 
+const getFirstField = (row, keys) => {
+  for (const k of keys) {
+    const val = String(getField(row, k) ?? '').trim();
+    if (val) return val;
+  }
+  return '';
+};
+
+/* Extracts up to 5 colour options and their respective image URLs from a product row */
+function extractProductColors(row) {
+  const colors = [];
+  for (let i = 1; i <= 5; i++) {
+    const cName = getFirstField(row, [
+      `color_${i}`, `colour_${i}`,
+      `color ${i}`, `colour ${i}`,
+      `color-${i}`, `colour-${i}`,
+      `color${i}`, `colour${i}`
+    ]);
+    const cImg = cleanImg(getFirstField(row, [
+      `image_${i}`, `img_${i}`,
+      `image ${i}`, `img ${i}`,
+      `color_${i}_image`, `colour_${i}_image`,
+      `color ${i} image`, `colour ${i} image`,
+      `color-${i}-image`, `colour-${i}-image`,
+      `color_${i}_img`, `colour_${i}_img`,
+      `image${i}`, `img${i}`
+    ]));
+    if (cName) {
+      colors.push({ name: cName, image: cImg });
+    }
+  }
+  return colors;
+}
+
+/* Parses Method C soldout_sizes syntax: e.g. "1:XL, XXL / 2:M" or "XXXL / 1:XL / 2:M" */
+function parseSoldoutRules(rawSoldStr) {
+  const rules = { global: new Set(), byTarget: {} };
+  const s = String(rawSoldStr || '').trim();
+  if (!s) return rules;
+
+  const addSizeToTarget = (targetKey, rawSize) => {
+    const sz = String(rawSize || '').trim().toUpperCase();
+    if (!sz) return;
+    if (targetKey === 'global') {
+      rules.global.add(sz);
+    } else {
+      if (!rules.byTarget[targetKey]) rules.byTarget[targetKey] = new Set();
+      rules.byTarget[targetKey].add(sz);
+    }
+  };
+
+  /* Split colour groups by forward slash "/" (also supports ";" or "|") */
+  const groups = s.split(/[\/;|]+/);
+  groups.forEach(group => {
+    const trimmedGroup = group.trim();
+    if (!trimmedGroup) return;
+
+    let currentTarget = 'global';
+    const tokens = trimmedGroup.split(',');
+
+    tokens.forEach(token => {
+      const t = token.trim();
+      if (!t) return;
+
+      if (t.includes(':')) {
+        const colonIdx = t.indexOf(':');
+        let rawKey = t.slice(0, colonIdx).trim().toLowerCase();
+        const firstSize = t.slice(colonIdx + 1).trim();
+
+        /* Normalize "color 1", "colour_1", or "1" -> "1" */
+        const numMatch = rawKey.match(/^(?:colou?r[\s_-]*)?(\d+)$/i);
+        if (numMatch) rawKey = numMatch[1];
+
+        currentTarget = rawKey || 'global';
+        addSizeToTarget(currentTarget, firstSize);
+      } else {
+        addSizeToTarget(currentTarget, t);
+      }
+    });
+  });
+
+  return rules;
+}
+
+/* Checks if a specific size is sold out for the given product and active colour */
+function isSizeSoldOut(x, sizeName, colorName) {
+  if (!x || !x.soldRules) return false;
+  const sz = String(sizeName || '').trim().toUpperCase();
+
+  /* 1. Check global stockouts (applies to all colours) */
+  if (x.soldRules.global.has('ALL') || x.soldRules.global.has('*') || x.soldRules.global.has(sz)) {
+    return true;
+  }
+
+  /* 2. Check colour-specific stockouts (by colour number 1..5 or colour name) */
+  if (colorName && x.colors && x.colors.length) {
+    const cLower = String(colorName).trim().toLowerCase();
+    const cIdx = x.colors.findIndex(c => c.name.toLowerCase() === cLower);
+    if (cIdx !== -1) {
+      const idxKey = String(cIdx + 1);
+      const setByIdx = x.soldRules.byTarget[idxKey];
+      if (setByIdx && (setByIdx.has('ALL') || setByIdx.has('*') || setByIdx.has(sz))) {
+        return true;
+      }
+    }
+    const setByName = x.soldRules.byTarget[cLower];
+    if (setByName && (setByName.has('ALL') || setByName.has('*') || setByName.has(sz))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/* Checks if every offered size of a specific colour is sold out */
+function isColorEntirelySoldOut(x, colorName) {
+  if (!x || !x.sizes || !x.sizes.length) return false;
+  return x.sizes.every(s => isSizeSoldOut(x, s, colorName));
+}
+
 function normaliseData(raw) {
   const yes = v => !/^(false|no|0|n)$/i.test(String(v ?? 'true').trim());
   const num = v => {
@@ -552,6 +726,36 @@ function normaliseData(raw) {
     return { prices, mrps, availSizes: catSizes.filter(s => s in prices) };
   };
 
+  const buildProductItem = (r, rIdx, catObj) => {
+    const prodName = String(getField(r, 'name') || '').trim();
+    const rawPid = String(getField(r, 'product_id') || '').trim();
+    if (!prodName && !rawPid) return null;
+    if (!yes(getField(r, 'active'))) return null;
+
+    const { prices, mrps, availSizes } = extractPricesAndSizes(r, catObj.sizes);
+    if (!availSizes.length) return null;
+
+    const colors = extractProductColors(r);
+    const mainImage = cleanImg(getField(r, 'image_url') || getField(r, 'image')) || (colors[0] && colors[0].image) || '';
+    const pid = rawPid || `${catObj.code}-${String(rIdx + 1).padStart(2, '0')}`;
+    const soldRules = parseSoldoutRules(getField(r, 'soldout_sizes'));
+
+    return {
+      id: pid,
+      n: prodName || pid,
+      cat: catObj,
+      spec: String(getField(r, 'description') || '').trim(),
+      image: mainImage,
+      colors,
+      tag: String(getField(r, 'badge') || '').trim(),
+      soldRules,
+      prices,
+      mrps,
+      sizes: availSizes,
+      ref: prices[catObj.ref] != null ? catObj.ref : availSizes[0]
+    };
+  };
+
   if (tabKeys.length) {
     tabKeys.forEach(tabName => {
       const rows = toObjects(raw[tabName]);
@@ -582,28 +786,8 @@ function normaliseData(raw) {
       cats.push(catObj);
 
       rows.forEach((r, rIdx) => {
-        const prodName = String(getField(r, 'name') || '').trim();
-        const rawPid = String(getField(r, 'product_id') || '').trim();
-        if (!prodName && !rawPid) return;
-        if (!yes(getField(r, 'active'))) return;
-
-        const { prices, mrps, availSizes } = extractPricesAndSizes(r, catObj.sizes);
-        if (!availSizes.length) return;
-
-        const pid = rawPid || `${catObj.code}-${String(rIdx + 1).padStart(2, '0')}`;
-        items.push({
-          id: pid,
-          n: prodName || pid,
-          cat: catObj,
-          spec: String(getField(r, 'description') || '').trim(),
-          image: cleanImg(getField(r, 'image_url') || getField(r, 'image')),
-          tag: String(getField(r, 'badge') || '').trim(),
-          sold: list(getField(r, 'soldout_sizes')),
-          prices,
-          mrps,
-          sizes: availSizes,
-          ref: prices[catObj.ref] != null ? catObj.ref : availSizes[0]
-        });
+        const item = buildProductItem(r, rIdx, catObj);
+        if (item) items.push(item);
       });
     });
   } else {
@@ -632,32 +816,11 @@ function normaliseData(raw) {
     });
 
     rawProds.forEach((r, rIdx) => {
-      const prodName = String(getField(r, 'name') || '').trim();
-      const rawPid = String(getField(r, 'product_id') || '').trim();
-      if (!prodName && !rawPid) return;
-      if (!yes(getField(r, 'active'))) return;
-
       const rawCatId = String(getField(r, 'category_id') || getField(r, 'category') || '').trim().toLowerCase();
       const catObj = cm[rawCatId] || cats[0];
       if (!catObj) return;
-
-      const { prices, mrps, availSizes } = extractPricesAndSizes(r, catObj.sizes);
-      if (!availSizes.length) return;
-
-      const pid = rawPid || `${catObj.code}-${String(rIdx + 1).padStart(2, '0')}`;
-      items.push({
-        id: pid,
-        n: prodName || pid,
-        cat: catObj,
-        spec: String(getField(r, 'description') || '').trim(),
-        image: cleanImg(getField(r, 'image_url') || getField(r, 'image')),
-        tag: String(getField(r, 'badge') || '').trim(),
-        sold: list(getField(r, 'soldout_sizes')),
-        prices,
-        mrps,
-        sizes: availSizes,
-        ref: prices[catObj.ref] != null ? catObj.ref : availSizes[0]
-      });
+      const item = buildProductItem(r, rIdx, catObj);
+      if (item) items.push(item);
     });
   }
 
@@ -749,7 +912,7 @@ async function fetchCatalogLive(showLoader = true) {
   }
 }
 
-/* ============================ 6. DYNAMIC CATEGORY NAVIGATION RENDERING ============================ */
+/* ============================ 6. DYNAMIC CATEGORY NAVIGATION & PRODUCT CARDS ============================ */
 function renderCategories(data) {
   const navCategories = CATS.length
     ? CATS
@@ -771,7 +934,11 @@ function showCat(id) {
   cat = id;
   const list = P.filter(x => id === 'all' || x.cat.id === id || x.cat.code === id);
   $('grid').innerHTML = list.length
-    ? list.map(x => `<div class="card" data-i="${x.id}" tabindex="0" role="link" aria-label="${x.n}"><div class="tile">${imgTag(x)}${x.tag ? `<span class="tag">${x.tag}</span>` : ''}</div><h3>${x.n}</h3><div class="pr">${priceHTML(x, x.ref)}</div><p class="sz">Price for size ${x.ref}</p></div>`).join('')
+    ? list.map(x => {
+        const colorCount = x.colors ? x.colors.length : 0;
+        const colorLabel = colorCount > 1 ? ` · ${colorCount} colours` : (colorCount === 1 ? ` · ${x.colors[0].name}` : '');
+        return `<div class="card" data-i="${x.id}" tabindex="0" role="link" aria-label="${x.n}"><div class="tile">${imgTag(x)}${x.tag ? `<span class="tag">${x.tag}</span>` : ''}</div><h3>${x.n}</h3><div class="pr">${priceHTML(x, x.ref)}</div><p class="sz">Price for size ${x.ref}${colorLabel}</p></div>`;
+      }).join('')
     : '<div class="state">No products in this section yet.</div>';
   $('heading').textContent = id === 'all' ? 'All products' : ((CATS.find(c => c.id === id || c.code === id) || {}).name || id);
   $('count').textContent = list.length + (list.length === 1 ? ' item' : ' items');
@@ -793,26 +960,71 @@ const openCard = e => {
 $('grid').addEventListener('click', openCard);
 $('grid').addEventListener('keydown', e => { if (e.key === 'Enter') openCard(e); });
 
-/* ---- Product Detail Page (PDP) ---- */
-function refreshOpenPDP() {
+/* ---- Product Detail Page (PDP) with Dynamic Colour Image & Stockout Swapping ---- */
+function updatePDPImage() {
   const x = cur;
   if (!x) return;
   const im = $('pImg');
+  const activeImgUrl = imageForColor(x, selColor);
+  const cTone = selColor ? swatchColor(selColor) : null;
   im.dataset.fb = '';
   im.dataset.pid = x.id;
-  im.className = x.image ? 'real' : '';
-  im.alt = x.n;
-  im.src = x.image || ph(x);
-  $('pCat').textContent = x.cat.name;
-  $('pName').textContent = x.n;
-  $('pSpec').textContent = x.spec || 'Specifications will be added soon.';
-  if (sel && !(sel in x.prices)) sel = null;
+  im.className = activeImgUrl ? 'real' : '';
+  im.alt = selColor ? `${x.n} - ${selColor}` : x.n;
+  im.src = activeImgUrl || ph(x, cTone);
+}
+
+/* Re-renders the size buttons whenever a product opens or the selected colour changes */
+function renderPDPSizes() {
+  const x = cur;
+  if (!x) return;
+
+  if (sel && (!(sel in x.prices) || isSizeSoldOut(x, sel, selColor))) {
+    sel = null;
+  }
+
   $('sizes').innerHTML = x.cat.sizes
     .filter(s => s in x.prices)
-    .map(s => x.sold.includes(s)
+    .map(s => isSizeSoldOut(x, s, selColor)
       ? `<button class="sbtn" type="button" disabled><b>${s}</b><small>Sold out</small></button>`
       : `<button class="sbtn" type="button" data-s="${s}" aria-pressed="${s === sel}"><b>${s}</b><small>${inr(x.prices[s])}</small></button>`)
     .join('');
+}
+
+function refreshOpenPDP() {
+  const x = cur;
+  if (!x) return;
+
+  $('pCat').textContent = x.cat.name;
+  $('pName').textContent = x.n;
+  $('pSpec').textContent = x.spec || 'Specifications will be added soon.';
+
+  /* Handle Colour Choices (1 to 5 colours) */
+  const hasColors = x.colors && x.colors.length > 0;
+  if (hasColors) {
+    if (!selColor || !x.colors.some(c => c.name === selColor)) {
+      const firstInStock = x.colors.find(c => !isColorEntirelySoldOut(x, c.name));
+      selColor = (firstInStock || x.colors[0]).name;
+    }
+    $('colorWrap').hidden = false;
+    $('cSelName').textContent = `— ${selColor}`;
+    $('colors').innerHTML = x.colors.map((c, idx) => {
+      const dotBg = c.image
+        ? `background-image:url('${c.image.replace(/'/g, "\\'")}');background-color:${swatchColor(c.name, idx)}`
+        : `background-color:${swatchColor(c.name, idx)}`;
+      const safeName = c.name.replace(/"/g, '&quot;');
+      const allOut = isColorEntirelySoldOut(x, c.name);
+      return `<button class="cbtn${allOut ? ' c-sold' : ''}" type="button" data-color="${safeName}" aria-pressed="${c.name === selColor}"><span class="cdot" style="${dotBg}"></span><span>${c.name}</span>${allOut ? '<small>(Sold out)</small>' : ''}</button>`;
+    }).join('');
+  } else {
+    selColor = null;
+    $('colorWrap').hidden = true;
+    $('colors').innerHTML = '';
+    $('cSelName').textContent = '';
+  }
+
+  updatePDPImage();
+  renderPDPSizes();
   paintPrice();
 }
 
@@ -821,8 +1033,15 @@ function openP(id) {
   if (!x) return;
   cur = x;
   sel = null;
+  if (x.colors && x.colors.length) {
+    const firstInStock = x.colors.find(c => !isColorEntirelySoldOut(x, c.name));
+    selColor = (firstInStock || x.colors[0]).name;
+  } else {
+    selColor = null;
+  }
   lastY = scrollY;
   $('sizeErr').hidden = true;
+  $('colorErr').hidden = true;
   refreshOpenPDP();
   document.body.classList.add('pdp');
   $('back').hidden = false;
@@ -854,37 +1073,59 @@ $('logo').addEventListener('click', () => {
 
 function paintPrice() {
   const x = cur, s = sel || x.ref, m = mrpOf(x, s);
+  const cSuffix = selColor ? ` · ${selColor}` : '';
   $('pPrice').textContent = $('bPrice').textContent = inr(priceOf(x, s));
   $('pMrp').textContent = m ? inr(m) : '';
   $('pOff').textContent = m ? offOf(x, s) + '% off' : '';
-  $('pNote').textContent = sel ? `Price for size ${sel}` : `Showing price for size ${x.ref} · select your size to see its price`;
-  $('bLbl').textContent = sel ? `Size ${sel}` : `Size ${x.ref} price`;
+  $('pNote').textContent = sel
+    ? `Price for size ${sel}${cSuffix}`
+    : `Showing price for size ${x.ref}${cSuffix} · select your size to see its price`;
+  $('bLbl').textContent = sel ? `Size ${sel}${cSuffix}` : `Size ${x.ref} price`;
   document.querySelectorAll('.sbtn[data-s]').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === sel));
+  document.querySelectorAll('.cbtn[data-color]').forEach(b => b.setAttribute('aria-pressed', b.dataset.color === selColor));
 }
+
+$('colors').addEventListener('click', e => {
+  const b = e.target.closest('.cbtn[data-color]');
+  if (!b) return;
+  selColor = b.dataset.color;
+  $('colorErr').hidden = true;
+  $('sizeErr').hidden = true;
+  $('cSelName').textContent = `— ${selColor}`;
+  updatePDPImage();
+  renderPDPSizes();
+  paintPrice();
+});
 
 $('sizes').addEventListener('click', e => {
   const b = e.target.closest('.sbtn[data-s]');
-  if (!b) return;
+  if (!b || b.disabled) return;
   sel = b.dataset.s;
   $('sizeErr').hidden = true;
   paintPrice();
 });
 
 $('addBtn').addEventListener('click', () => {
-  if (!sel) {
+  if (cur.colors && cur.colors.length && !selColor) {
+    $('colorErr').hidden = false;
+    $('colors').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
+  if (!sel || isSizeSoldOut(cur, sel, selColor)) {
     $('sizeErr').hidden = false;
     $('sizes').scrollIntoView({ block: 'center', behavior: 'smooth' });
     return;
   }
-  const f = cart.find(i => i.id === cur.id && i.s === sel);
+  const cVal = selColor || '';
+  const f = cart.find(i => i.id === cur.id && i.s === sel && (i.c || '') === cVal);
   if (f) f.q++;
-  else cart.push({ id: cur.id, s: sel, q: 1 });
+  else cart.push({ id: cur.id, s: sel, c: cVal, q: 1 });
   saveCartState();
   renderCart();
   openCart();
 });
 
-/* ============================ 7. CART, TRIPLE-REDUNDANT ORDER WEBHOOK & WHATSAPP CHECKOUT ============================ */
+/* ============================ 7. CART, ORDER WEBHOOK & WHATSAPP CHECKOUT ============================ */
 const subTotal = () => cart.reduce((a, i) => a + (BY[i.id] ? priceOf(BY[i.id], i.s) * i.q : 0), 0);
 const grandTotal = () => cart.length ? subTotal() + DELIVERY_FEE : 0;
 
@@ -893,13 +1134,14 @@ function closeCart() { document.body.classList.remove('cart-open'); $('openCart'
 
 function renderCart() {
   if (Object.keys(BY).length) {
-    cart = cart.filter(i => BY[i.id] && priceOf(BY[i.id], i.s) != null);
+    cart = cart.filter(i => BY[i.id] && priceOf(BY[i.id], i.s) != null && !isSizeSoldOut(BY[i.id], i.s, i.c));
     saveCartState();
   }
   $('items').innerHTML = cart.length && Object.keys(BY).length
     ? cart.map((i, k) => {
         const x = BY[i.id];
-        return `<div class="it"><div class="th">${imgTag(x)}</div><div><h4>${x.n}</h4><p class="meta">Size ${i.s}</p><b>${inr(priceOf(x, i.s) * i.q)}</b><div class="row"><span class="qty"><button type="button" data-k="${k}" data-a="dec" aria-label="Decrease quantity">−</button><span>${i.q}</span><button type="button" data-k="${k}" data-a="inc" aria-label="Increase quantity">+</button></span><button class="rm" type="button" data-k="${k}" data-a="rm">Remove</button></div></div></div>`;
+        const metaText = i.c ? `Size ${i.s} · ${i.c}` : `Size ${i.s}`;
+        return `<div class="it"><div class="th">${imgTag(x, i.c)}</div><div><h4>${x.n}</h4><p class="meta">${metaText}</p><b>${inr(priceOf(x, i.s) * i.q)}</b><div class="row"><span class="qty"><button type="button" data-k="${k}" data-a="dec" aria-label="Decrease quantity">−</button><span>${i.q}</span><button type="button" data-k="${k}" data-a="inc" aria-label="Increase quantity">+</button></span><button class="rm" type="button" data-k="${k}" data-a="rm">Remove</button></div></div></div>`;
       }).join('')
     : '<p class="empty">Your cart is empty. Open a product, pick a size and add it here.</p>';
   $('total').textContent = inr(grandTotal());
@@ -927,7 +1169,7 @@ addEventListener('keydown', e => {
   else backP();
 });
 
-/* Sends order details via Hidden Form POST + Fetch POST + JSONP GET so Google Sheets always logs it */
+/* Sends Order Data to your Orderbook Google Sheet via Hidden Form POST + Fetch POST + JSONP GET */
 function triggerOrderWebhook(orderPayload) {
   const hookUrl = (ORDER_WEBHOOK_URL || '').trim();
   if (!hookUrl || hookUrl === 'PASTE_YOUR_NEW_ORDERS_SHEET_WEB_APP_URL_HERE') {
@@ -936,7 +1178,7 @@ function triggerOrderWebhook(orderPayload) {
 
   const bodyStr = JSON.stringify(orderPayload);
 
-  /* Channel 1: Native hidden <form method="POST" target="msl_order_frame"> (immune to CORS & tab redirects) */
+  /* Channel 1: Native hidden <form method="POST" target="msl_order_frame"> */
   try {
     const form = document.createElement('form');
     form.method = 'POST';
@@ -1036,6 +1278,7 @@ $('wa').addEventListener('click', async () => {
       name: prod.n,
       category: prod.cat.name,
       size: i.s,
+      color: i.c || '',
       qty: i.q,
       unit_price: unitPrice,
       line_total: unitPrice * i.q
@@ -1043,7 +1286,10 @@ $('wa').addEventListener('click', async () => {
   });
 
   const lines = itemsDetailed
-    .map(item => `${item.index}. ${item.name} [${item.product_id}] (Size ${item.size}) × ${item.qty} – ${inr(item.line_total)}`)
+    .map(item => {
+      const variantSpec = item.color ? `Size ${item.size}, Colour: ${item.color}` : `Size ${item.size}`;
+      return `${item.index}. ${item.name} [${item.product_id}] (${variantSpec}) × ${item.qty} – ${inr(item.line_total)}`;
+    })
     .join('\n');
 
   const formattedAddress = `${flat}, ${city}, ${state} - ${pin}`;
